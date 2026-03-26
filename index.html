@@ -517,9 +517,12 @@ async function syncFromSheets(){
   try{
     const res  = await fetch(GS_URL + '?action=getAll');
     const text = await res.text();
-    // HtmlService retorna HTML — extrai o JSON do body
-    const match = text.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-    const jsonStr = match ? match[1].trim() : text.trim();
+    // HtmlService envolve o JSON em HTML — extrai só o JSON
+    let jsonStr = text;
+    const bodyMatch = text.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    if(bodyMatch) jsonStr = bodyMatch[1].trim();
+    // Remove tags HTML residuais se houver
+    jsonStr = jsonStr.replace(/<[^>]+>/g,'').trim();
     const json = JSON.parse(jsonStr);
     if(!json.ok) throw new Error('sheets error');
     const d = json.result;
