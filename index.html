@@ -493,94 +493,116 @@ const PAY_INFO={Pix:{icon:'⚡',color:'#E8FF47'},Dinheiro:{icon:'💵',color:'#4
 
 let selectedSize='',selectedPay='',isFiado=false,agFilter='todos';
 
-// ── GOOGLE SHEETS SYNC ────────────────────────────────────────────────────────
-const GS_URL = 'https://script.google.com/macros/s/AKfycbxz5gRkWPtY7-JUnC38ZPljHSUeAsT2pPkHQuR3bvBn9VhknvWEut4HpYVi0xbEOXzn5g/exec';
+// ── SUPABASE SYNC ─────────────────────────────────────────────────────────────
+const SB_URL = 'https://akrvhkngraaxiqhytdgs.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrcnZoa25ncmFheGlxaHl0ZGdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1NDc1NjksImV4cCI6MjA5MDEyMzU2OX0.8MSI5vphxMhX7ki-htmZAY-Rs9JqqwxwbCRIzSGnfUQ';
 
-// Cache local (fallback offline)
-const _cache = {};
+const SB_HEADERS = {
+  'Content-Type':  'application/json',
+  'apikey':        SB_KEY,
+  'Authorization': 'Bearer ' + SB_KEY,
+  'Prefer':        'return=minimal'
+};
+
+async function sbGet(table, params=''){
+  const res = await fetch(`${SB_URL}/rest/v1/${table}?${params}`, {headers: {...SB_HEADERS, 'Prefer':''}});
+  return res.ok ? res.json() : [];
+}
+async function sbUpsert(table, data){
+  await fetch(`${SB_URL}/rest/v1/${table}`, {
+    method:'POST', headers:{...SB_HEADERS, 'Prefer':'resolution=merge-duplicates'},
+    body: JSON.stringify(data)
+  });
+}
+async function sbDelete(table, id){
+  await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`, {method:'DELETE', headers:SB_HEADERS});
+}
+async function sbPatch(table, id, data){
+  await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`, {
+    method:'PATCH', headers:SB_HEADERS, body:JSON.stringify(data)
+  });
+}
+
+// Cache local fallback
 async function _lGet(k){try{const r=await window.storage.get(k);return r?JSON.parse(r.value):null;}catch{return null;}}
 async function _lSet(k,v){try{await window.storage.set(k,JSON.stringify(v));}catch{}}
 
-// Envia ação para o Sheets via GET (compatível com HtmlService CORS)
-async function gsPost(action, data){
-  try{
-    const url = GS_URL
-      + '?action=' + encodeURIComponent(action)
-      + '&data='   + encodeURIComponent(JSON.stringify(data));
-    await fetch(url, {mode:'no-cors'});
-  }catch(e){}
-}
-
-// Carrega TUDO do Sheets na abertura
+// Carrega TUDO do Supabase na abertura
 async function syncFromSheets(){
   showSyncBadge(true);
   try{
-    const res  = await fetch(GS_URL + '?action=getAll');
-    const text = await res.text();
-    // HtmlService envolve o JSON em HTML — extrai só o JSON
-    let jsonStr = text;
-    const bodyMatch = text.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-    if(bodyMatch) jsonStr = bodyMatch[1].trim();
-    // Remove tags HTML residuais se houver
-    jsonStr = jsonStr.replace(/<[^>]+>/g,'').trim();
-    const json = JSON.parse(jsonStr);
-    if(!json.ok) throw new Error('sheets error');
-    const d = json.result;
+    const [vendas, despesas, agenda, estoque, saldoArr] = await Promise.all([
+      sbGet('vendas',   'order=created_at.desc'),
+      sbGet('despesas', 'order=created_at.desc'),
+      sbGet('agenda',   'order=created_at.desc'),
+      sbGet('estoque',  ''),
+      sbGet('saldo',    'id=eq.1')
+    ]);
 
-    if(d.vendas && d.vendas.length){
-      const vendas = d.vendas.map(r=>({
-        id: Number(r.ID), isoDate: r['ISO Date']||'', data: r['Data/Hora']||'',
-        marca: r.Marca, tamanho: r.Tamanho, qtd: Number(r.Qtd),
-        valor: Number(r['Valor (R$)']), pagamento: r.Pagamento,
-        parcelas: r.Parcelas||null, cliente: r.Cliente,
-        contato: r.Contato||'', obs: r.Obs||'',
-        fiado: r['A Prazo?']==='Sim'
-      }));
-      await _lSet('vendas_v2', vendas);
-    }
-    if(d.despesas && d.despesas.length){
-      const despesas = d.despesas.map(r=>({
-        id: Number(r.ID), date: r.Data, cat: r.Categoria,
-        desc: r['Descrição']||'', valor: Number(r['Valor (R$)'])
-      }));
-      await _lSet('despesas_v1', despesas);
-    }
-    if(d.agenda && d.agenda.length){
-      const agenda = d.agenda.map(r=>({
-        id: Number(r.ID), cliente: r.Cliente, contato: r.Contato||'',
-        valor: Number(r['Valor (R$)']), dataVenc: r.Vencimento,
-        desc: r['Descrição']||'', pago: r['Pago?']==='Sim',
-        dataPago: r['Data Pgto']||'', origem: r.Origem||'manual',
-        vendaId: r['ID Venda']||''
-      }));
-      await _lSet('agenda_v1', agenda);
-    }
-    if(d.estoque && Object.keys(d.estoque).length){
-      await _lSet('estoque_v2', d.estoque);
-    }
-    if(d.saldo){
-      await _lSet('saldo_v1', d.saldo.saldo||0);
-    }
-    showMsg('✓ Dados sincronizados!','#4ADE80');
+    // Converte para formato interno do app
+    const vendasFmt = vendas.map(r=>({
+      id: r.id, isoDate: r.iso_date||'', data: r.data||'',
+      marca: r.marca, tamanho: r.tamanho, qtd: r.qtd,
+      valor: r.valor, pagamento: r.pagamento,
+      parcelas: r.parcelas||null, cliente: r.cliente,
+      contato: r.contato||'', obs: r.obs||'', fiado: r.fiado
+    }));
+    const despFmt = despesas.map(r=>({
+      id: r.id, date: r.date, cat: r.cat,
+      desc: r.descricao||'', valor: r.valor
+    }));
+    const agFmt = agenda.map(r=>({
+      id: r.id, cliente: r.cliente, contato: r.contato||'',
+      valor: r.valor, dataVenc: r.data_venc,
+      desc: r.descricao||'', pago: r.pago,
+      dataPago: r.data_pago||'', origem: r.origem||'manual',
+      vendaId: r.venda_id||''
+    }));
+    const estFmt = {};
+    estoque.forEach(r=>{
+      estFmt[r.marca]={M:r.m,G:r.g,GG:r.gg,Peruana:r.peruana,Oversized:r.oversized,'Único':r.unico};
+    });
+
+    if(vendasFmt.length)  await _lSet('vendas_v2',  vendasFmt);
+    if(despFmt.length)    await _lSet('despesas_v1', despFmt);
+    if(agFmt.length)      await _lSet('agenda_v1',   agFmt);
+    if(Object.keys(estFmt).length) await _lSet('estoque_v2', estFmt);
+    if(saldoArr.length)   await _lSet('saldo_v1', saldoArr[0].valor||0);
+
+    showMsg('✓ Sincronizado!','#4ADE80');
   }catch(e){
-    showMsg('⚠ Offline — usando dados locais','#FBBF24');
+    showMsg('⚠ Offline — dados locais','#FBBF24');
   }
   showSyncBadge(false);
 }
 
 function showSyncBadge(on){
-  let b = document.getElementById('syncBadge');
+  const b=document.getElementById('syncBadge');
   if(!b) return;
-  b.style.display = on ? 'flex' : 'none';
+  b.style.display=on?'flex':'none';
 }
 
-// STORAGE (local cache + sync remoto)
+// STORAGE (local + Supabase)
 async function getEstoque(){const c=await _lGet('estoque_v2');return c||JSON.parse(JSON.stringify(ESTOQUE_INICIAL));}
-async function saveEstoque(o){await _lSet('estoque_v2',o);gsPost('saveEstoque',o);}
+async function saveEstoque(est){
+  await _lSet('estoque_v2',est);
+  const rows=Object.entries(est).map(([marca,s])=>({
+    marca, m:s.M||0, g:s.G||0, gg:s.GG||0,
+    peruana:s.Peruana||0, oversized:s.Oversized||0, unico:s['Único']||0
+  }));
+  for(const r of rows) await sbUpsert('estoque', r);
+}
 async function getVendas(){return (await _lGet('vendas_v2'))||[];}
-async function saveVendas(a){await _lSet('vendas_v2',a);} // vendas individuais enviadas em registrarVenda
+async function saveVendas(a){await _lSet('vendas_v2',a);}
 async function getDespesas(){return (await _lGet('despesas_v1'))||[];}
 async function saveDespesas(a){await _lSet('despesas_v1',a);}
+async function getSaldo(){const v=await _lGet('saldo_v1');return v!==null?Number(v):0;}
+async function saveSaldoVal(v){
+  await _lSet('saldo_v1',v);
+  await sbPatch('saldo',1,{valor:v});
+}
+async function getAgenda(){return (await _lGet('agenda_v1'))||[];}
+async function saveAgenda(a){await _lSet('agenda_v1',a);}
 async function getSaldo(){const v=await _lGet('saldo_v1');return v!==null?Number(v):0;}
 async function saveSaldoVal(v){await _lSet('saldo_v1',v);gsPost('saveSaldo',{saldo:v});}
 async function getAgenda(){return (await _lGet('agenda_v1'))||[];}
@@ -705,7 +727,13 @@ async function registrarVenda(){
     fiado:isFiado
   };
   const lista=await getVendas();lista.unshift(venda);await saveVendas(lista);
-  gsPost('addVenda', venda); // sincroniza com Sheets
+  // Sincroniza com Supabase
+  await sbUpsert('vendas',{
+    id:venda.id, iso_date:venda.isoDate, data:venda.data,
+    marca:venda.marca, tamanho:venda.tamanho, qtd:venda.qtd,
+    valor:venda.valor, pagamento:venda.pagamento, parcelas:venda.parcelas||'',
+    cliente:venda.cliente, contato:venda.contato||'', obs:venda.obs||'', fiado:venda.fiado
+  });
 
   // Cria cobrança na agenda automaticamente
   if(isFiado){
@@ -719,7 +747,11 @@ async function registrarVenda(){
     };
     ag.push(cobranca);
     await saveAgenda(ag);
-    gsPost('addAgenda', cobranca); // sincroniza com Sheets
+    await sbUpsert('agenda',{
+      id:cobranca.id, cliente:cobranca.cliente, contato:cobranca.contato||'',
+      valor:cobranca.valor, data_venc:cobranca.dataVenc, descricao:cobranca.desc||'',
+      pago:false, origem:'venda', venda_id:venda.id
+    });
     await updateBadgeAgenda();
   }
 
@@ -839,12 +871,13 @@ async function salvarDespesa(){
   const cat=document.getElementById('despCat').value,desc=document.getElementById('despDesc').value.trim(),valor=parseFloat(document.getElementById('despValor').value),date=document.getElementById('finDate').value||todayStr();
   if(!cat) return showMsg('⚠ Selecione a categoria','#FBBF24');
   if(!valor||valor<=0) return showMsg('⚠ Informe o valor','#FBBF24');
-  const lista=await getDespesas();lista.push({id:Date.now(),date,cat,desc,valor});await saveDespesas(lista);
-  gsPost('addDespesa',{id:lista[lista.length-1].id,date,cat,desc,valor});
+  const d2={id:Date.now(),date,cat,desc,valor};
+  const lista=await getDespesas();lista.push(d2);await saveDespesas(lista);
+  await sbUpsert('despesas',{id:d2.id,date,cat,descricao:desc||'',valor});
   document.getElementById('despCat').selectedIndex=0;document.getElementById('despDesc').value='';document.getElementById('despValor').value='';document.getElementById('despForm').classList.remove('open');
   showMsg('✓ Despesa registrada!','#FF6B35');renderFinanceiro();
 }
-async function deletarDespesa(id){if(!confirm('Remover esta despesa?')) return;const l=await getDespesas();await saveDespesas(l.filter(d=>d.id!==id));gsPost('deleteDespesa',{id});renderFinanceiro();}
+async function deletarDespesa(id){if(!confirm('Remover esta despesa?')) return;const l=await getDespesas();await saveDespesas(l.filter(d=>d.id!==id));await sbDelete('despesas',id);renderFinanceiro();}
 function toggleEditSaldo(){document.getElementById('caixaEdit').classList.toggle('open');}
 async function saveSaldo(){
   const v=parseFloat(document.getElementById('caixaInput').value);if(isNaN(v)) return showMsg('⚠ Valor inválido','#FBBF24');
@@ -882,7 +915,7 @@ async function salvarCobranca(){
   const nova={id:Date.now(),cliente,contato,valor,dataVenc:data,desc,pago:false,origem:'manual'};
   ag.push(nova);
   await saveAgenda(ag);
-  gsPost('addAgenda', nova);
+  await sbUpsert('agenda',{id:nova.id,cliente,contato:contato||'',valor,data_venc:data,descricao:desc||'',pago:false,origem:'manual'});
   await updateBadgeAgenda();
 
   ['agCliente','agContato','agValor','agData','agDesc'].forEach(id=>document.getElementById(id).value='');
@@ -897,7 +930,7 @@ async function marcarPago(id){
   if(!item) return;
   item.pago=true; item.dataPago=todayStr();
   await saveAgenda(ag);
-  gsPost('updateAgenda',{id,pago:true,dataPago:item.dataPago});
+  await sbPatch('agenda', id, {pago:true, data_pago:item.dataPago});
   const s=await getSaldo(); await saveSaldoVal(s+item.valor);
   await updateBadgeAgenda();
   showMsg('✓ Recebimento confirmado! Saldo atualizado.','#4ADE80');
@@ -908,7 +941,7 @@ async function deletarCobranca(id){
   if(!confirm('Remover esta cobrança?')) return;
   const ag=await getAgenda();
   await saveAgenda(ag.filter(a=>a.id!==id));
-  gsPost('deleteAgenda',{id});
+  await sbDelete('agenda',id);
   await updateBadgeAgenda();
   renderAgenda();
 }
