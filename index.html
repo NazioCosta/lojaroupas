@@ -603,10 +603,6 @@ async function saveSaldoVal(v){
 }
 async function getAgenda(){return (await _lGet('agenda_v1'))||[];}
 async function saveAgenda(a){await _lSet('agenda_v1',a);}
-async function getSaldo(){const v=await _lGet('saldo_v1');return v!==null?Number(v):0;}
-async function saveSaldoVal(v){await _lSet('saldo_v1',v);gsPost('saveSaldo',{saldo:v});}
-async function getAgenda(){return (await _lGet('agenda_v1'))||[];}
-async function saveAgenda(a){await _lSet('agenda_v1',a);}
 
 // UTILS
 function fmtBRL(v){return 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2});}
