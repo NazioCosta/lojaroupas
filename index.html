@@ -969,15 +969,9 @@ async function renderAgenda(){
 }
 
 // ── AUTH ──────────────────────────────────────────────────────────────────────
-// Senhas armazenadas como SHA-256. Para trocar: gere o hash em https://emn178.github.io/online-tools/sha256.html
-// Usuário 1: nazio    | Senha padrão: loja@2025
-// Usuário 2: irmao    | Senha padrão: venda@2025
-const USERS = {
-  'nazio': 'a7f3e2b1c9d4e5f6a8b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4',
-  'irmao': 'b8e4f3c2d0e6f7a9b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6'
-};
+// Usuário 1: nazio  | Senha: Laura@123
+// Usuário 2: bruno  | Senha inicial: 123456 (deve trocar no primeiro acesso)
 
-// SHA-256 nativo via Web Crypto API
 async function sha256(msg){
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(msg));
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
@@ -991,20 +985,25 @@ async function doLogin(){
 
   if(!user || !pass){ err.textContent='Preencha usuário e senha.'; err.style.display='block'; return; }
 
-  const hash = await sha256(pass);
+  const hash        = await sha256(pass);
+  const hashNazio   = await sha256('Laura@123');
+  const hashBruno   = await sha256('123456');
 
-  // Verifica contra senhas pré-definidas
-  // loja@2025
-  const hashLoja  = await sha256('loja@2025');
-  // venda@2025
-  const hashVenda = await sha256('venda@2025');
+  // Verifica senha salva localmente (para quando Bruno trocar a senha)
+  const senhaSalva  = localStorage.getItem('senha_'+user);
 
-  const validUsers = { 'nazio': hashLoja, 'irmao': hashVenda };
+  const validUsers  = { 'nazio': hashNazio, 'bruno': senhaSalva || hashBruno };
 
   if(validUsers[user] && validUsers[user] === hash){
     sessionStorage.setItem('loja_user', user);
     document.getElementById('loginScreen').classList.add('hidden');
     document.getElementById('userBadge').textContent = '👤 ' + user;
+
+    // Bruno com senha padrão — força troca de senha
+    if(user === 'bruno' && !senhaSalva){
+      setTimeout(()=>abrirTrocaSenha(), 600);
+    }
+
     await syncFromSheets();
     await updateBadgeAgenda();
   } else {
@@ -1012,6 +1011,20 @@ async function doLogin(){
     err.style.display = 'block';
     document.getElementById('loginPass').value = '';
   }
+}
+
+function abrirTrocaSenha(){
+  const nova = prompt('🔐 Primeiro acesso!\n\nCrie uma nova senha para substituir a senha padrão:');
+  if(!nova || nova.length < 6){
+    alert('Senha muito curta. Use pelo menos 6 caracteres.'); 
+    abrirTrocaSenha(); return;
+  }
+  const conf = prompt('Confirme a nova senha:');
+  if(nova !== conf){ alert('As senhas não coincidem. Tente novamente.'); abrirTrocaSenha(); return; }
+  sha256(nova).then(hash=>{
+    localStorage.setItem('senha_bruno', hash);
+    alert('✅ Senha alterada com sucesso!');
+  });
 }
 
 function doLogout(){
