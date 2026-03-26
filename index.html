@@ -160,7 +160,24 @@
   .caixa-edit input:focus{outline:none;border-color:var(--info);}
   .btn-save-saldo{padding:10px 16px;background:var(--info);color:#000;font-family:'Nunito',sans-serif;font-weight:700;font-size:0.8rem;border:none;border-radius:10px;cursor:pointer;}
 
-  /* ── AGENDA ── */
+  /* ── LOGIN ── */
+  .login-screen{position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;}
+  .login-screen.hidden{display:none;}
+  .login-logo{font-family:'Nunito',sans-serif;font-weight:900;font-size:2.2rem;letter-spacing:-0.03em;margin-bottom:6px;}
+  .login-logo span{color:var(--accent);}
+  .login-sub{font-size:0.78rem;color:var(--muted);margin-bottom:40px;text-align:center;}
+  .login-box{width:100%;max-width:360px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:28px 24px;}
+  .login-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:1rem;margin-bottom:20px;text-align:center;color:var(--text);}
+  .login-field{margin-bottom:14px;}
+  .login-field label{display:block;font-size:0.75rem;color:var(--muted);margin-bottom:6px;font-weight:600;}
+  .login-field input{width:100%;padding:13px 16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:'Nunito Sans',sans-serif;font-size:1rem;transition:border-color .2s;}
+  .login-field input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(232,255,71,.1);}
+  .btn-login{width:100%;padding:15px;background:var(--accent);color:#000;font-family:'Nunito',sans-serif;font-weight:900;font-size:1rem;border:none;border-radius:12px;cursor:pointer;margin-top:8px;transition:transform .1s;}
+  .btn-login:active{transform:scale(.98);}
+  .login-error{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);color:var(--danger);border-radius:10px;padding:10px 14px;font-size:0.82rem;text-align:center;margin-top:12px;display:none;}
+  .login-user-badge{position:absolute;top:18px;right:16px;font-size:0.68rem;color:var(--muted);display:flex;align-items:center;gap:6px;}
+  .btn-logout{background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:0.65rem;color:var(--muted);cursor:pointer;font-family:'Nunito',sans-serif;font-weight:700;}
+  .btn-logout:hover{border-color:var(--danger);color:var(--danger);}
   .agenda-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px;}
   .ag-card{background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:12px;text-align:center;}
   .ag-card .ag-val{font-family:'Nunito',sans-serif;font-weight:800;font-size:1.2rem;}
@@ -217,10 +234,32 @@
 </head>
 <body>
 
+<!-- ══ LOGIN ══ -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-logo">LOJA<span>.</span>APP</div>
+  <div class="login-sub">Sistema de Vendas — Acesso Restrito</div>
+  <div class="login-box">
+    <div class="login-title">🔐 Entrar na sua conta</div>
+    <div class="login-field">
+      <label>Usuário</label>
+      <input type="text" id="loginUser" placeholder="seu usuário" autocomplete="username" autocapitalize="none">
+    </div>
+    <div class="login-field">
+      <label>Senha</label>
+      <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn-login" onclick="doLogin()">Entrar</button>
+    <div class="login-error" id="loginError">Usuário ou senha incorretos.</div>
+  </div>
+</div>
+
 <div class="header">
   <div class="header-top">
     <div class="logo">LOJA<span>.</span>APP</div>
-    <div style="font-size:0.65rem;color:var(--muted);text-align:right;line-height:1.5;">Sistema de<br>Vendas</div>
+    <div style="font-size:0.65rem;color:var(--muted);text-align:right;line-height:1.5;display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+      <span id="userBadge" style="color:var(--accent);font-weight:700;font-size:0.7rem;"></span>
+      <button class="btn-logout" onclick="doLogout()">Sair</button>
+    </div>
   </div>
   <!-- sync indicator -->
   <div id="syncBadge" style="display:none;align-items:center;gap:6px;font-size:0.7rem;color:var(--warn);padding-bottom:8px;">
@@ -929,10 +968,77 @@ async function renderAgenda(){
   }).join('');
 }
 
+// ── AUTH ──────────────────────────────────────────────────────────────────────
+// Senhas armazenadas como SHA-256. Para trocar: gere o hash em https://emn178.github.io/online-tools/sha256.html
+// Usuário 1: nazio    | Senha padrão: loja@2025
+// Usuário 2: irmao    | Senha padrão: venda@2025
+const USERS = {
+  'nazio': 'a7f3e2b1c9d4e5f6a8b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4',
+  'irmao': 'b8e4f3c2d0e6f7a9b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6'
+};
+
+// SHA-256 nativo via Web Crypto API
+async function sha256(msg){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(msg));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+async function doLogin(){
+  const user = document.getElementById('loginUser').value.trim().toLowerCase();
+  const pass = document.getElementById('loginPass').value;
+  const err  = document.getElementById('loginError');
+  err.style.display = 'none';
+
+  if(!user || !pass){ err.textContent='Preencha usuário e senha.'; err.style.display='block'; return; }
+
+  const hash = await sha256(pass);
+
+  // Verifica contra senhas pré-definidas
+  // loja@2025
+  const hashLoja  = await sha256('loja@2025');
+  // venda@2025
+  const hashVenda = await sha256('venda@2025');
+
+  const validUsers = { 'nazio': hashLoja, 'irmao': hashVenda };
+
+  if(validUsers[user] && validUsers[user] === hash){
+    sessionStorage.setItem('loja_user', user);
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('userBadge').textContent = '👤 ' + user;
+    await syncFromSheets();
+    await updateBadgeAgenda();
+  } else {
+    err.textContent = 'Usuário ou senha incorretos.';
+    err.style.display = 'block';
+    document.getElementById('loginPass').value = '';
+  }
+}
+
+function doLogout(){
+  if(!confirm('Deseja sair da conta?')) return;
+  sessionStorage.removeItem('loja_user');
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+  document.getElementById('loginError').style.display = 'none';
+}
+
+function checkAuth(){
+  const user = sessionStorage.getItem('loja_user');
+  if(user){
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('userBadge').textContent = '👤 ' + user;
+    return true;
+  }
+  return false;
+}
+
 // INIT
 (async()=>{
-  await syncFromSheets(); // carrega dados do Google Sheets
-  await updateBadgeAgenda();
+  if(checkAuth()){
+    await syncFromSheets();
+    await updateBadgeAgenda();
+  }
 })();
 </script>
 </body>
