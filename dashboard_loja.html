@@ -200,17 +200,45 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito Sans',sans-serif
         <div class="lucro-val" id="lucroVal">R$ 0,00</div>
       </div>
 
-      <div class="grid-2">
-        <!-- Vendas por pagamento -->
-        <div class="card">
-          <div class="card-title">Vendas por Pagamento</div>
-          <canvas id="chartPagamento" height="96"></canvas>
+      <!-- Fluxo de Caixa -->
+      <div class="card" style="margin-bottom:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
+          <div class="card-title" style="margin-bottom:0;">📈 Fluxo de Caixa</div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+            <button class="filter-btn active" id="cfBtn7"  onclick="setCfPeriod(7,this)">7 dias</button>
+            <button class="filter-btn"        id="cfBtn15" onclick="setCfPeriod(15,this)">15 dias</button>
+            <button class="filter-btn"        id="cfBtn30" onclick="setCfPeriod(30,this)">30 dias</button>
+            <button class="filter-btn"        id="cfBtnCustom" onclick="setCfPeriod(0,this)">Personalizado</button>
+          </div>
         </div>
-        <!-- Vendas por marca -->
-        <div class="card">
-          <div class="card-title">Vendas por Marca</div>
-          <canvas id="chartMarca" height="96"></canvas>
+        <div id="cfCustomRange" style="display:none;gap:8px;margin-bottom:14px;">
+          <div style="display:flex;gap:8px;align-items:flex-end;">
+            <div style="flex:1;">
+              <div style="font-size:0.7rem;color:var(--muted);margin-bottom:4px;">De</div>
+              <input type="date" id="cfDateDe" style="width:100%;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;" onchange="renderCashflow()">
+            </div>
+            <div style="flex:1;">
+              <div style="font-size:0.7rem;color:var(--muted);margin-bottom:4px;">Até</div>
+              <input type="date" id="cfDateAte" style="width:100%;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;" onchange="renderCashflow()">
+            </div>
+          </div>
         </div>
+        <!-- Totais rápidos -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">
+          <div style="background:var(--surface2);border-radius:10px;padding:10px;text-align:center;">
+            <div style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Entradas</div>
+            <div id="cfTotalEntradas" style="font-family:'Nunito',sans-serif;font-weight:800;font-size:1rem;color:var(--green);">R$ 0</div>
+          </div>
+          <div style="background:var(--surface2);border-radius:10px;padding:10px;text-align:center;">
+            <div style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Saídas</div>
+            <div id="cfTotalSaidas" style="font-family:'Nunito',sans-serif;font-weight:800;font-size:1rem;color:var(--red);">R$ 0</div>
+          </div>
+          <div style="background:var(--surface2);border-radius:10px;padding:10px;text-align:center;">
+            <div style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Saldo</div>
+            <div id="cfTotalSaldo" style="font-family:'Nunito',sans-serif;font-weight:800;font-size:1rem;color:var(--accent);">R$ 0</div>
+          </div>
+        </div>
+        <canvas id="chartCashflow" height="120"></canvas>
       </div>
 
       <div class="grid-2">
@@ -249,7 +277,6 @@ const HDR = {'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY};
 
 let period = 'hoje';
 let allVendas=[], allDespesas=[], allAgenda=[], allEstoque=[], saldo=0;
-let chartPag=null, chartMarca=null;
 
 // AUTH
 async function sha256(msg){
@@ -382,35 +409,141 @@ function render(){
   lv.textContent=fmtBRL(lucro);
   lv.className='lucro-val '+(lucro>0?'pos':lucro<0?'neg':'');
 
-  renderChartPagamento(vendas);
-  renderChartMarca(vendas);
+  renderCashflow();
   renderVendas(vendas.slice(0,8));
   renderAgenda(pendentes);
   renderEstoque();
   renderDespesas(despesas);
 }
 
-function renderChartPagamento(vendas){
-  const types=['Pix','Dinheiro','Crédito','Débito'];
-  const vals=types.map(t=>vendas.filter(v=>v.pagamento===t).reduce((s,v)=>s+Number(v.valor||0),0));
-  if(chartPag) chartPag.destroy();
-  chartPag=new Chart(document.getElementById('chartPagamento'),{
-    type:'doughnut',
-    data:{labels:types,datasets:[{data:vals,backgroundColor:['#E8FF47','#4ADE80','#60A5FA','#FBBF24'],borderWidth:0,borderRadius:4}]},
-    options:{plugins:{legend:{position:'bottom',labels:{font:{family:'Nunito Sans',size:11},padding:12,color:'#888'}}},cutout:'65%'}
-  });
+// ── FLUXO DE CAIXA ────────────────────────────────────────
+let cfDays = 7;
+let cfChart = null;
+
+function setCfPeriod(days, el){
+  cfDays = days;
+  document.querySelectorAll('[id^=cfBtn]').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  const custom = document.getElementById('cfCustomRange');
+  if(days === 0){
+    custom.style.display = 'flex';
+    if(!document.getElementById('cfDateDe').value){
+      const now = new Date();
+      const d30 = new Date(now); d30.setDate(d30.getDate()-29);
+      document.getElementById('cfDateDe').value = d30.toISOString().slice(0,10);
+      document.getElementById('cfDateAte').value = todayStr();
+    }
+  } else {
+    custom.style.display = 'none';
+  }
+  renderCashflow();
 }
 
-function renderChartMarca(vendas){
-  const marcas={};
-  vendas.forEach(v=>{marcas[v.marca]=(marcas[v.marca]||0)+Number(v.valor||0);});
-  const labels=Object.keys(marcas).sort((a,b)=>marcas[b]-marcas[a]).slice(0,7);
-  const vals=labels.map(l=>marcas[l]);
-  if(chartMarca) chartMarca.destroy();
-  chartMarca=new Chart(document.getElementById('chartMarca'),{
+function renderCashflow(){
+  // Define intervalo de datas
+  let dateFrom, dateTo;
+  const today = new Date();
+  if(cfDays === 0){
+    dateFrom = document.getElementById('cfDateDe').value || todayStr();
+    dateTo   = document.getElementById('cfDateAte').value || todayStr();
+  } else {
+    const d = new Date(today); d.setDate(d.getDate() - (cfDays-1));
+    dateFrom = d.toISOString().slice(0,10);
+    dateTo   = todayStr();
+  }
+
+  // Gera array de datas do período
+  const dates = [];
+  const cur = new Date(dateFrom);
+  const end = new Date(dateTo);
+  while(cur <= end){
+    dates.push(cur.toISOString().slice(0,10));
+    cur.setDate(cur.getDate()+1);
+  }
+
+  // Agrupa entradas e saídas por dia
+  const entradas = {}, saidas = {};
+  dates.forEach(d=>{ entradas[d]=0; saidas[d]=0; });
+
+  allVendas.forEach(v=>{
+    const d = (v.iso_date||v.created_at||'').slice(0,10);
+    if(entradas[d]!==undefined) entradas[d] += Number(v.valor||0);
+  });
+  allDespesas.forEach(d=>{
+    const dt = (d.date||'').slice(0,10);
+    if(saidas[dt]!==undefined) saidas[dt] += Number(d.valor||0);
+  });
+
+  // Saldo acumulado
+  let acumulado = 0;
+  const saldoAcum = dates.map(d=>{
+    acumulado += (entradas[d]||0) - (saidas[d]||0);
+    return acumulado;
+  });
+
+  // Totais
+  const totalEnt = Object.values(entradas).reduce((s,v)=>s+v,0);
+  const totalSai = Object.values(saidas).reduce((s,v)=>s+v,0);
+  document.getElementById('cfTotalEntradas').textContent = fmtBRL(totalEnt);
+  document.getElementById('cfTotalSaidas').textContent   = fmtBRL(totalSai);
+  const saldoFinal = totalEnt - totalSai;
+  const saldoEl = document.getElementById('cfTotalSaldo');
+  saldoEl.textContent = fmtBRL(saldoFinal);
+  saldoEl.style.color = saldoFinal >= 0 ? 'var(--green)' : 'var(--red)';
+
+  // Labels curtos
+  const labels = dates.map(d=>{
+    const [,m,day] = d.split('-');
+    return `${day}/${m}`;
+  });
+
+  if(cfChart) cfChart.destroy();
+  cfChart = new Chart(document.getElementById('chartCashflow'),{
     type:'bar',
-    data:{labels,datasets:[{data:vals,backgroundColor:'#E8FF47',borderRadius:6}]},
-    options:{plugins:{legend:{display:false}},scales:{y:{grid:{color:'#2A2A2A'},ticks:{font:{family:'Nunito Sans',size:10},color:'#666'}},x:{grid:{display:false},ticks:{font:{family:'Nunito Sans',size:10},color:'#666'}}}}
+    data:{
+      labels,
+      datasets:[
+        {
+          label:'Entradas',
+          data: dates.map(d=>entradas[d]),
+          backgroundColor:'rgba(74,222,128,0.7)',
+          borderRadius:4, order:2
+        },
+        {
+          label:'Saídas',
+          data: dates.map(d=>-(saidas[d])),
+          backgroundColor:'rgba(248,113,113,0.7)',
+          borderRadius:4, order:2
+        },
+        {
+          label:'Saldo acumulado',
+          data: saldoAcum,
+          type:'line',
+          borderColor:'#E8FF47',
+          backgroundColor:'rgba(232,255,71,0.08)',
+          borderWidth:2,
+          pointRadius:3,
+          pointBackgroundColor:'#E8FF47',
+          fill:true, tension:0.3, order:1
+        }
+      ]
+    },
+    options:{
+      plugins:{
+        legend:{
+          position:'bottom',
+          labels:{font:{family:'Nunito Sans',size:10},padding:10,color:'#888'}
+        }
+      },
+      scales:{
+        y:{
+          grid:{color:'#2A2A2A'},
+          ticks:{font:{family:'Nunito Sans',size:9},color:'#666',
+            callback: v => 'R$'+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:0})}
+        },
+        x:{grid:{display:false},ticks:{font:{family:'Nunito Sans',size:9},color:'#666'}}
+      }
+    }
   });
 }
 
