@@ -230,6 +230,56 @@
   .ag-form-wrap .field{margin-bottom:10px;}
   .btn-add-ag{background:var(--warn);color:#000;border:none;border-radius:10px;padding:8px 14px;font-family:'Nunito',sans-serif;font-weight:700;font-size:0.75rem;cursor:pointer;}
   .btn-save-ag{width:100%;padding:13px;background:var(--warn);color:#000;font-family:'Nunito',sans-serif;font-weight:800;font-size:0.9rem;border:none;border-radius:12px;cursor:pointer;margin-top:8px;}
+
+  /* ── CONTAS A PAGAR ── */
+  .cp-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px;}
+  .cp-card{background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:12px;text-align:center;}
+  .cp-card .cp-val{font-family:'Nunito',sans-serif;font-weight:800;font-size:1.2rem;}
+  .cp-card .cp-lbl{font-size:0.62rem;color:var(--muted);margin-top:3px;line-height:1.3;}
+  .cp-card.atrasado{border-color:rgba(248,113,113,.4);} .cp-card.atrasado .cp-val{color:var(--danger);}
+  .cp-card.hoje{border-color:rgba(251,191,36,.4);}      .cp-card.hoje .cp-val{color:var(--warn);}
+  .cp-card.futuro{border-color:rgba(74,222,128,.3);}    .cp-card.futuro .cp-val{color:var(--success);}
+
+  .cp-item{border-radius:var(--radius);padding:15px;margin-bottom:10px;animation:fadeIn .3s ease;position:relative;overflow:hidden;}
+  .cp-item::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;}
+  .cp-item.atrasado{background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.25);}
+  .cp-item.atrasado::before{background:var(--danger);}
+  .cp-item.hoje{background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.25);}
+  .cp-item.hoje::before{background:var(--warn);}
+  .cp-item.futuro{background:var(--surface2);border:1px solid var(--border);}
+  .cp-item.futuro::before{background:#333;}
+  .cp-item.pago{background:rgba(74,222,128,.04);border:1px solid rgba(74,222,128,.15);opacity:.6;}
+  .cp-item.pago::before{background:var(--success);}
+  .cp-top{display:flex;justify-content:space-between;align-items:flex-start;padding-left:10px;}
+  .cp-nome{font-family:'Nunito',sans-serif;font-weight:700;font-size:0.95rem;}
+  .cp-valor{font-family:'Nunito',sans-serif;font-weight:800;font-size:1rem;}
+  .cp-item.atrasado .cp-valor{color:var(--danger);}
+  .cp-item.hoje .cp-valor{color:var(--warn);}
+  .cp-item.futuro .cp-valor{color:var(--accent);}
+  .cp-item.pago .cp-valor{color:var(--success);}
+  .cp-info{padding-left:10px;margin-top:5px;}
+  .cp-detail{font-size:0.75rem;color:#888;margin-top:3px;line-height:1.5;}
+  .cp-actions{display:flex;align-items:center;justify-content:space-between;padding-left:10px;margin-top:10px;}
+  .cp-badge{font-size:0.67rem;font-weight:700;font-family:'Nunito',sans-serif;padding:3px 10px;border-radius:20px;}
+  .badge-cp-atrasado{background:rgba(248,113,113,.15);color:var(--danger);border:1px solid rgba(248,113,113,.3);}
+  .badge-cp-hoje{background:rgba(251,191,36,.15);color:var(--warn);border:1px solid rgba(251,191,36,.3);}
+  .badge-cp-futuro{background:rgba(74,222,128,.1);color:var(--success);border:1px solid rgba(74,222,128,.2);}
+  .badge-cp-pago{background:rgba(74,222,128,.1);color:var(--success);border:1px solid rgba(74,222,128,.2);}
+  .btn-cp-pago{padding:5px 12px;background:var(--success);color:#000;font-family:'Nunito',sans-serif;font-weight:700;font-size:0.68rem;border:none;border-radius:8px;cursor:pointer;}
+  .btn-cp-del{padding:5px 10px;background:none;color:#444;font-size:0.72rem;border:1px solid var(--border);border-radius:8px;cursor:pointer;}
+  .btn-cp-del:hover{color:var(--danger);border-color:var(--danger);}
+  .badge-cp-venc{background:rgba(248,113,113,.15);color:var(--danger);border:1px solid rgba(248,113,113,.3);font-size:0.67rem;font-weight:700;font-family:'Nunito',sans-serif;padding:3px 10px;border-radius:20px;}
+  .cp-form-wrap{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:20px;display:none;}
+  .cp-form-wrap.open{display:block;}
+  .btn-add-cp{background:var(--danger);color:#fff;border:none;border-radius:10px;padding:8px 14px;font-family:'Nunito',sans-serif;font-weight:700;font-size:0.75rem;cursor:pointer;}
+  .btn-save-cp{width:100%;padding:13px;background:var(--danger);color:#fff;font-family:'Nunito',sans-serif;font-weight:800;font-size:0.9rem;border:none;border-radius:12px;cursor:pointer;margin-top:8px;}
+  .cp-total-box{background:var(--surface2);border:1px solid rgba(248,113,113,.3);border-radius:var(--radius);padding:16px;text-align:center;margin-bottom:20px;}
+  .cp-total-label{font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;}
+  .cp-total-val{font-family:'Nunito',sans-serif;font-weight:800;font-size:1.8rem;color:var(--danger);}
+  .cp-filter-bar{display:flex;gap:6px;margin-bottom:16px;overflow-x:auto;padding-bottom:2px;}
+  .cp-filter-bar::-webkit-scrollbar{display:none;}
+  .cp-filter{padding:7px 14px;border-radius:20px;font-family:'Nunito',sans-serif;font-size:0.68rem;font-weight:700;letter-spacing:0.05em;cursor:pointer;border:1px solid var(--border);color:var(--muted);background:transparent;white-space:nowrap;}
+  .cp-filter.active{background:var(--danger);color:#fff;border-color:var(--danger);}
 </style>
 </head>
 <body>
@@ -273,6 +323,7 @@
     <button class="tab"        onclick="switchTab('estoque',this)">Estoque</button>
     <button class="tab"        onclick="switchTab('financeiro',this)">Financ.</button>
     <button class="tab"        id="tabAgenda" onclick="switchTab('agenda',this)">Agenda<span class="badge-agenda" id="badgeAgenda"></span></button>
+    <button class="tab"        id="tabContas" onclick="switchTab('contas',this)">Contas<span class="badge-agenda" id="badgeContas"></span></button>
   </div>
 </div>
 
@@ -480,6 +531,64 @@
   <div id="listAgenda"></div>
 </div>
 
+<!-- ══ CONTAS A PAGAR ══ -->
+<div id="screen-contas" class="screen">
+
+  <div class="hist-header">
+    <div class="hist-title">💸 Contas a Pagar</div>
+    <button class="btn-add-cp" onclick="toggleCpForm()">＋ Nova</button>
+  </div>
+
+  <!-- Resumo -->
+  <div class="cp-summary">
+    <div class="cp-card atrasado"><div class="cp-val" id="cpCountAtrasado">0</div><div class="cp-lbl">Atrasadas</div></div>
+    <div class="cp-card hoje">    <div class="cp-val" id="cpCountHoje">0</div>    <div class="cp-lbl">Vencem Hoje</div></div>
+    <div class="cp-card futuro">  <div class="cp-val" id="cpCountFuturo">0</div>  <div class="cp-lbl">A Pagar</div></div>
+  </div>
+
+  <!-- Total pendente -->
+  <div class="cp-total-box">
+    <div class="cp-total-label">Total Pendente a Pagar</div>
+    <div class="cp-total-val" id="cpTotalPendente">R$ 0,00</div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="cp-filter-bar">
+    <button class="cp-filter active" onclick="setCpFilter('todos',this)">Todos</button>
+    <button class="cp-filter"        onclick="setCpFilter('atrasado',this)">⚠ Atrasadas</button>
+    <button class="cp-filter"        onclick="setCpFilter('hoje',this)">🔔 Hoje</button>
+    <button class="cp-filter"        onclick="setCpFilter('futuro',this)">📆 Futuras</button>
+    <button class="cp-filter"        onclick="setCpFilter('pago',this)">✓ Pagas</button>
+  </div>
+
+  <!-- Formulário nova conta -->
+  <div class="cp-form-wrap" id="cpForm">
+    <p class="section-label" style="margin-top:0">Nova Conta a Pagar</p>
+    <div class="field">
+      <label>Categoria</label>
+      <select id="cpCat">
+        <option value="">Selecionar…</option>
+        <option>Fornecedor de Malhas</option>
+        <option>Aluguel</option>
+        <option>Embalagens</option>
+        <option>Transporte</option>
+        <option>Taxa Cartão</option>
+        <option>Energia/Água</option>
+        <option>Internet/Telefone</option>
+        <option>Marketing</option>
+        <option>Outros</option>
+      </select>
+    </div>
+    <div class="field"><label>Descrição</label><input type="text" id="cpDesc" placeholder="Ex: Boleto fornecedor ABC"></div>
+    <div class="field"><label>Valor (R$)</label><input type="number" id="cpValor" inputmode="decimal" placeholder="0,00" min="0" step="0.01"></div>
+    <div class="field"><label>Data de vencimento</label><input type="date" id="cpVenc"></div>
+    <div class="field"><label>Observação (opcional)</label><input type="text" id="cpObs" placeholder="Ex: parcelado em 3x, boleto banco X…"></div>
+    <button class="btn-save-cp" onclick="salvarConta()">✓ Salvar Conta</button>
+  </div>
+
+  <div id="listContas"></div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -604,6 +713,9 @@ async function saveSaldoVal(v){
 async function getAgenda(){return (await _lGet('agenda_v1'))||[];}
 async function saveAgenda(a){await _lSet('agenda_v1',a);}
 
+async function getContas(){return (await _lGet('contas_v1'))||[];}
+async function saveContas(a){await _lSet('contas_v1',a);}
+
 // UTILS
 function fmtBRL(v){return 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2});}
 function todayStr(){return new Date().toISOString().slice(0,10);}
@@ -631,6 +743,7 @@ function switchTab(tab,el){
   if(tab==='estoque')    renderEstoque();
   if(tab==='financeiro') {initFinDate();renderFinanceiro();}
   if(tab==='agenda')     renderAgenda();
+  if(tab==='contas')     renderContas();
 }
 
 // VENDA
@@ -1083,11 +1196,144 @@ function checkAuth(){
   return false;
 }
 
+// ── CONTAS A PAGAR ────────────────────────────────────────────────────────────
+let cpFilter = 'todos';
+
+function setCpFilter(f, el){
+  cpFilter = f;
+  document.querySelectorAll('.cp-filter').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderContas();
+}
+
+function toggleCpForm(){
+  const f = document.getElementById('cpForm');
+  f.classList.toggle('open');
+  if(f.classList.contains('open') && !document.getElementById('cpVenc').value){
+    const d = new Date(); d.setDate(d.getDate()+7);
+    document.getElementById('cpVenc').value = d.toISOString().slice(0,10);
+  }
+}
+
+async function salvarConta(){
+  const cat   = document.getElementById('cpCat').value;
+  const desc  = document.getElementById('cpDesc').value.trim();
+  const valor = parseFloat(document.getElementById('cpValor').value);
+  const venc  = document.getElementById('cpVenc').value;
+  const obs   = document.getElementById('cpObs').value.trim();
+
+  if(!cat)            return showMsg('⚠ Selecione a categoria','#FBBF24');
+  if(!valor||valor<=0) return showMsg('⚠ Informe o valor','#FBBF24');
+  if(!venc)           return showMsg('⚠ Informe a data de vencimento','#FBBF24');
+
+  const conta = {id:Date.now(), cat, desc, valor, dataVenc:venc, obs, pago:false, dataPago:''};
+  const lista = await getContas();
+  lista.push(conta);
+  await saveContas(lista);
+
+  ['cpCat','cpDesc','cpValor','cpVenc','cpObs'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el.tagName==='SELECT') el.selectedIndex=0; else el.value='';
+  });
+  document.getElementById('cpForm').classList.remove('open');
+  showMsg('✓ Conta registrada!','#F87171');
+  await updateBadgeContas();
+  renderContas();
+}
+
+async function marcarContaPaga(id){
+  const lista = await getContas();
+  const item  = lista.find(c=>c.id===id);
+  if(!item) return;
+  item.pago = true; item.dataPago = todayStr();
+  await saveContas(lista);
+  await updateBadgeContas();
+  showMsg('✓ Conta marcada como paga!','#4ADE80');
+  renderContas();
+}
+
+async function deletarConta(id){
+  if(!confirm('Remover esta conta?')) return;
+  const lista = await getContas();
+  await saveContas(lista.filter(c=>c.id!==id));
+  await updateBadgeContas();
+  renderContas();
+}
+
+async function updateBadgeContas(){
+  const lista = await getContas();
+  const t = todayStr();
+  const urgentes = lista.filter(c=>!c.pago && c.dataVenc<=t).length;
+  const badge = document.getElementById('badgeContas');
+  if(badge){
+    if(urgentes>0){badge.textContent=urgentes;badge.style.display='inline';}
+    else badge.style.display='none';
+  }
+}
+
+async function renderContas(){
+  const lista   = await getContas();
+  const t       = todayStr();
+  const pendentes = lista.filter(c=>!c.pago);
+  const atrasadas = pendentes.filter(c=>c.dataVenc<t);
+  const hoje_list = pendentes.filter(c=>c.dataVenc===t);
+  const futuras   = pendentes.filter(c=>c.dataVenc>t);
+  const total     = pendentes.reduce((s,c)=>s+c.valor,0);
+
+  document.getElementById('cpCountAtrasado').textContent = atrasadas.length;
+  document.getElementById('cpCountHoje').textContent     = hoje_list.length;
+  document.getElementById('cpCountFuturo').textContent   = futuras.length;
+  document.getElementById('cpTotalPendente').textContent = fmtBRL(total);
+
+  let exibir = lista;
+  if(cpFilter==='atrasado') exibir = atrasadas;
+  else if(cpFilter==='hoje') exibir = hoje_list;
+  else if(cpFilter==='futuro') exibir = futuras;
+  else if(cpFilter==='pago') exibir = lista.filter(c=>c.pago);
+  else exibir = [...atrasadas,...hoje_list,...futuras,...lista.filter(c=>c.pago)];
+
+  const el = document.getElementById('listContas');
+  if(!exibir.length){
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">✅</div><p>${cpFilter==='todos'?'Nenhuma conta cadastrada.<br>Use ＋ Nova para adicionar.':'Nenhum item nesta categoria.'}</p></div>`;
+    return;
+  }
+
+  el.innerHTML = exibir.map(c=>{
+    const st   = c.pago?'pago':c.dataVenc<t?'atrasado':c.dataVenc===t?'hoje':'futuro';
+    const dias = st==='atrasado'?diasAtraso(c.dataVenc):0;
+    const badgeMap = {
+      atrasado:`<span class="cp-badge badge-cp-atrasado">⚠ ${dias}d atraso</span>`,
+      hoje:    `<span class="cp-badge badge-cp-hoje">🔔 Vence hoje</span>`,
+      futuro:  `<span class="cp-badge badge-cp-futuro">📆 ${fmtDate(c.dataVenc)}</span>`,
+      pago:    `<span class="cp-badge badge-cp-pago">✓ Pago em ${fmtDate(c.dataPago)}</span>`
+    };
+    return `<div class="cp-item ${st}">
+      <div class="cp-top">
+        <div class="cp-nome">🏷️ ${c.cat}</div>
+        <div class="cp-valor">${fmtBRL(c.valor)}</div>
+      </div>
+      <div class="cp-info">
+        ${c.desc?`<div class="cp-detail">📝 ${c.desc}</div>`:''}
+        ${c.obs?`<div class="cp-detail">💬 ${c.obs}</div>`:''}
+        <div class="cp-detail">📅 Vencimento: ${fmtDate(c.dataVenc)}</div>
+      </div>
+      <div class="cp-actions">
+        ${badgeMap[st]}
+        <div style="display:flex;gap:6px;">
+          ${!c.pago?`<button class="btn-cp-pago" onclick="marcarContaPaga(${c.id})">✓ Paguei</button>`:''}
+          <button class="btn-cp-del" onclick="deletarConta(${c.id})">🗑</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 // INIT
 (async()=>{
   if(checkAuth()){
     await syncFromSheets();
     await updateBadgeAgenda();
+    await updateBadgeContas();
   }
 })();
 </script>
