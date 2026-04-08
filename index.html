@@ -436,13 +436,31 @@
 
 <!-- ══ FINANCEIRO ══ -->
 <div id="screen-financeiro" class="screen">
-  <div class="fin-date-bar">
-    <input type="date" id="finDate" onchange="renderFinanceiro()">
-    <button class="btn-today" onclick="setToday()">Hoje</button>
+
+  <!-- Filtro por período -->
+  <div style="margin-bottom:16px;">
+    <div style="display:flex;gap:6px;margin-bottom:10px;overflow-x:auto;padding-bottom:2px;">
+      <button class="ag-filter active" id="fpBtnHoje"    onclick="setFinPeriod('hoje',this)">Hoje</button>
+      <button class="ag-filter"        id="fpBtnSemana"  onclick="setFinPeriod('semana',this)">Esta semana</button>
+      <button class="ag-filter"        id="fpBtnMes"     onclick="setFinPeriod('mes',this)">Este mês</button>
+      <button class="ag-filter"        id="fpBtnPersonal" onclick="setFinPeriod('custom',this)">Personalizado</button>
+    </div>
+    <div id="finCustomRange" style="display:none;gap:8px;align-items:center;">
+      <div style="flex:1;">
+        <div style="font-size:0.72rem;color:var(--muted);margin-bottom:4px;">De</div>
+        <input type="date" id="finDateDe" style="width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:'Nunito Sans',sans-serif;font-size:0.9rem;" onchange="renderFinanceiro()">
+      </div>
+      <div style="flex:1;">
+        <div style="font-size:0.72rem;color:var(--muted);margin-bottom:4px;">Até</div>
+        <input type="date" id="finDateAte" style="width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:'Nunito Sans',sans-serif;font-size:0.9rem;" onchange="renderFinanceiro()">
+      </div>
+    </div>
+    <div id="finPeriodLabel" style="font-size:0.75rem;color:var(--muted);margin-top:6px;"></div>
   </div>
+
   <div class="fin-cards-4">
-    <div class="s-card green"><div class="s-val" id="finReceita">R$ 0</div><div class="s-lbl">Receitas do dia</div></div>
-    <div class="s-card red">  <div class="s-val" id="finDespesa">R$ 0</div><div class="s-lbl">Despesas do dia</div></div>
+    <div class="s-card green"><div class="s-val" id="finReceita">R$ 0</div><div class="s-lbl">Receitas</div></div>
+    <div class="s-card red">  <div class="s-val" id="finDespesa">R$ 0</div><div class="s-lbl">Despesas</div></div>
     <div class="s-card" id="finLucroCard"><div class="s-val" id="finLucro">R$ 0</div><div class="s-lbl">Lucro líquido</div></div>
     <div class="s-card blue"><div class="s-val" id="finVendasCount">0</div><div class="s-lbl">Vendas realizadas</div></div>
   </div>
@@ -462,7 +480,7 @@
     <div id="payBreakdown"></div>
   </div>
   <div class="lucro-box">
-    <div class="lucro-label">Lucro Líquido do Dia</div>
+    <div class="lucro-label">Lucro Líquido do Período</div>
     <div class="lucro-val" id="lucroGrande">R$ 0,00</div>
   </div>
   <div class="desp-section">
@@ -946,43 +964,108 @@ function toggleBrand(h){const b=h.nextElementSibling;b.classList.toggle('open');
 async function resetEstoque(){if(!confirm('Restaurar estoque inicial?')) return;await saveEstoque(JSON.parse(JSON.stringify(ESTOQUE_INICIAL)));renderEstoque();showMsg('✓ Estoque restaurado!','#4ADE80');}
 
 // FINANCEIRO
-function initFinDate(){const i=document.getElementById('finDate');if(!i.value) i.value=todayStr();}
-function setToday(){document.getElementById('finDate').value=todayStr();renderFinanceiro();}
+let finPeriod = 'hoje';
+
+function setFinPeriod(period, el){
+  finPeriod = period;
+  document.querySelectorAll('#screen-financeiro .ag-filter').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  const customRange = document.getElementById('finCustomRange');
+  if(period === 'custom'){
+    customRange.style.display = 'flex';
+    if(!document.getElementById('finDateDe').value){
+      const now = new Date();
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      document.getElementById('finDateDe').value = firstDay.toISOString().slice(0,10);
+      document.getElementById('finDateAte').value = todayStr();
+    }
+  } else {
+    customRange.style.display = 'none';
+  }
+  renderFinanceiro();
+}
+
+function getFinDates(){
+  const t = todayStr();
+  const now = new Date();
+  if(finPeriod === 'hoje') return { de: t, ate: t };
+  if(finPeriod === 'semana'){
+    const d = new Date(now); d.setDate(d.getDate()-6);
+    return { de: d.toISOString().slice(0,10), ate: t };
+  }
+  if(finPeriod === 'mes'){
+    const first = new Date(now.getFullYear(), now.getMonth(), 1);
+    return { de: first.toISOString().slice(0,10), ate: t };
+  }
+  if(finPeriod === 'custom'){
+    return {
+      de:  document.getElementById('finDateDe').value  || t,
+      ate: document.getElementById('finDateAte').value || t
+    };
+  }
+  return { de: t, ate: t };
+}
+
+function initFinDate(){ renderFinanceiro(); }
+
 async function renderFinanceiro(){
-  const date=document.getElementById('finDate').value;if(!date) return;
-  const[vendas,despesas,saldo]=await Promise.all([getVendas(),getDespesas(),getSaldo()]);
-  const vendaDia=vendas.filter(v=>v.isoDate&&dateOfISO(v.isoDate)===date);
-  const despDia=despesas.filter(d=>d.date===date);
-  const receita=vendaDia.reduce((s,v)=>s+v.valor,0),desp=despDia.reduce((s,d)=>s+d.valor,0),lucro=receita-desp;
-  document.getElementById('finReceita').textContent=fmtBRL(receita);
-  document.getElementById('finDespesa').textContent=fmtBRL(desp);
-  document.getElementById('finVendasCount').textContent=vendaDia.length;
-  const lc=document.getElementById('finLucroCard');lc.className='s-card '+(lucro>0?'green':lucro<0?'red':'');
-  document.getElementById('finLucro').textContent=fmtBRL(lucro);
-  document.getElementById('caixaVal').textContent=fmtBRL(saldo);
-  const lg=document.getElementById('lucroGrande');lg.textContent=fmtBRL(lucro);lg.className='lucro-val '+(lucro>0?'pos':lucro<0?'neg':'zero');
-  const payTotals={Pix:0,Dinheiro:0,Crédito:0,Débito:0};
-  vendaDia.forEach(v=>{if(payTotals[v.pagamento]!==undefined) payTotals[v.pagamento]+=v.valor;});
-  const maxPay=Math.max(...Object.values(payTotals),1);
-  document.getElementById('payBreakdown').innerHTML=Object.entries(PAY_INFO).map(([key,info])=>{
-    const val=payTotals[key]||0,pct=Math.round(val/maxPay*100);
+  const {de, ate} = getFinDates();
+
+  // Label do período
+  const label = de === ate
+    ? `📅 ${fmtDate(de)}`
+    : `📅 ${fmtDate(de)} → ${fmtDate(ate)}`;
+  document.getElementById('finPeriodLabel').textContent = label;
+
+  const [vendas, despesas, saldo] = await Promise.all([getVendas(), getDespesas(), getSaldo()]);
+
+  const vendaDia = vendas.filter(v => {
+    const d = (v.isoDate||v.data||'').slice(0,10);
+    return d >= de && d <= ate;
+  });
+  const despDia = despesas.filter(d => d.date >= de && d.date <= ate);
+
+  const receita = vendaDia.reduce((s,v)=>s+v.valor,0);
+  const desp    = despDia.reduce((s,d)=>s+d.valor,0);
+  const lucro   = receita - desp;
+
+  document.getElementById('finReceita').textContent     = fmtBRL(receita);
+  document.getElementById('finDespesa').textContent     = fmtBRL(desp);
+  document.getElementById('finVendasCount').textContent = vendaDia.length;
+
+  const lc = document.getElementById('finLucroCard');
+  lc.className = 's-card ' + (lucro>0?'green':lucro<0?'red':'');
+  document.getElementById('finLucro').textContent = fmtBRL(lucro);
+  document.getElementById('caixaVal').textContent = fmtBRL(saldo);
+
+  const lg = document.getElementById('lucroGrande');
+  lg.textContent = fmtBRL(lucro);
+  lg.className = 'lucro-val ' + (lucro>0?'pos':lucro<0?'neg':'zero');
+
+  const payTotals = {Pix:0, Dinheiro:0, Crédito:0, Débito:0};
+  vendaDia.forEach(v=>{ if(payTotals[v.pagamento]!==undefined) payTotals[v.pagamento]+=v.valor; });
+  const maxPay = Math.max(...Object.values(payTotals), 1);
+  document.getElementById('payBreakdown').innerHTML = Object.entries(PAY_INFO).map(([key,info])=>{
+    const val = payTotals[key]||0;
+    const pct = Math.round(val/maxPay*100);
     return `<div class="pb-row"><span class="pb-icon">${info.icon}</span><span class="pb-label">${key}</span><div class="pb-bar-wrap"><div class="pb-bar-fill" style="width:${pct}%;background:${info.color}"></div></div><span class="pb-val" style="color:${info.color}">${fmtBRL(val)}</span></div>`;
   }).join('');
-  renderListaDespesas(despDia);
+
+  renderListaDespesas(despDia, de, ate);
 }
 function renderListaDespesas(d){
   const el=document.getElementById('listDespesas');
-  if(!d.length){el.innerHTML=`<div class="empty-state" style="padding:28px 0"><div class="empty-icon" style="font-size:2rem">📭</div><p>Nenhuma despesa neste dia.</p></div>`;return;}
-  el.innerHTML=d.map(x=>`<div class="desp-card"><div class="desp-left"><div class="desp-cat">${x.cat}</div>${x.desc?`<div class="desp-desc">${x.desc}</div>`:''}</div><div class="desp-right"><div class="desp-val">−${fmtBRL(x.valor)}</div><button class="btn-del" onclick="deletarDespesa(${x.id})">🗑 remover</button></div></div>`).join('');
+  if(!d.length){el.innerHTML=`<div class="empty-state" style="padding:28px 0"><div class="empty-icon" style="font-size:2rem">📭</div><p>Nenhuma despesa neste período.</p></div>`;return;}
+  el.innerHTML=d.map(x=>`<div class="desp-card"><div class="desp-left"><div class="desp-cat">${x.cat}</div>${x.desc?`<div class="desp-desc">${x.desc}</div>`:''}<div class="desp-date">${fmtDate(x.date)}</div></div><div class="desp-right"><div class="desp-val">−${fmtBRL(x.valor)}</div><button class="btn-del" onclick="deletarDespesa(${x.id})">🗑 remover</button></div></div>`).join('');
 }
 function toggleDespForm(){document.getElementById('despForm').classList.toggle('open');}
 async function salvarDespesa(){
   const cat=document.getElementById('despCat').value,desc=document.getElementById('despDesc').value.trim(),valor=parseFloat(document.getElementById('despValor').value),date=document.getElementById('finDate').value||todayStr();
   if(!cat) return showMsg('⚠ Selecione a categoria','#FBBF24');
   if(!valor||valor<=0) return showMsg('⚠ Informe o valor','#FBBF24');
-  const d2={id:Date.now(),date,cat,desc,valor};
+  const d2={id:Date.now(),date:todayStr(),cat,desc,valor};
   const lista=await getDespesas();lista.push(d2);await saveDespesas(lista);
-  await sbUpsert('despesas',{id:d2.id,date,cat,descricao:desc||'',valor});
+  await sbUpsert('despesas',{id:d2.id,date:todayStr(),cat,descricao:desc||'',valor});
   document.getElementById('despCat').selectedIndex=0;document.getElementById('despDesc').value='';document.getElementById('despValor').value='';document.getElementById('despForm').classList.remove('open');
   showMsg('✓ Despesa registrada!','#FF6B35');renderFinanceiro();
 }
