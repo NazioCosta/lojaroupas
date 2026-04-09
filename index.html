@@ -331,23 +331,20 @@
 <div id="screen-venda" class="screen active">
   <p class="section-label">Produto</p>
   <div class="field">
-    <label>Marca</label>
+    <label>Linha</label>
     <select id="marca" onchange="onMarcaChange()">
-      <option value="">Selecionar marca…</option>
-      <option>Hugo Boss</option><option>Lacoste</option><option>Gucci</option>
-      <option>Armani</option><option>Prada</option><option>Palm Angels</option>
-      <option>Nike</option><option>Outra</option>
+      <option value="">Selecionar linha…</option>
+      <option>Básica</option><option>Egípcia</option><option>Polo Egípcia</option>
+      <option>Polo Chinesa</option><option>Oversized</option>
     </select>
   </div>
   <div class="field">
     <label>Tamanho</label>
     <div class="size-grid">
-      <div class="size-btn" data-size="M"         onclick="selectSize(this,'M')">M<span class="sz-stock" id="st-M">—</span></div>
-      <div class="size-btn" data-size="G"         onclick="selectSize(this,'G')">G<span class="sz-stock" id="st-G">—</span></div>
-      <div class="size-btn" data-size="GG"        onclick="selectSize(this,'GG')">GG<span class="sz-stock" id="st-GG">—</span></div>
-      <div class="size-btn" data-size="Peruana"   onclick="selectSize(this,'Peruana')">Peruana<span class="sz-stock" id="st-Peruana">—</span></div>
-      <div class="size-btn" data-size="Oversized" onclick="selectSize(this,'Oversized')">Oversized<span class="sz-stock" id="st-Oversized">—</span></div>
-      <div class="size-btn" data-size="Único"     onclick="selectSize(this,'Único')">Único<span class="sz-stock" id="st-Único">—</span></div>
+      <div class="size-btn" data-size="M"       onclick="selectSize(this,'M')">M<span class="sz-stock" id="st-M">—</span></div>
+      <div class="size-btn" data-size="G"       onclick="selectSize(this,'G')">G<span class="sz-stock" id="st-G">—</span></div>
+      <div class="size-btn" data-size="GG"      onclick="selectSize(this,'GG')">GG<span class="sz-stock" id="st-GG">—</span></div>
+      <div class="size-btn" data-size="Peruana" onclick="selectSize(this,'Peruana')">Peruana<span class="sz-stock" id="st-Peruana">—</span></div>
     </div>
     <div class="stock-alert" id="sizeAlert"></div>
   </div>
@@ -489,15 +486,40 @@
       <button class="btn-add-desp" onclick="toggleDespForm()">＋ Adicionar</button>
     </div>
     <div class="desp-form" id="despForm">
-      <div class="field"><label>Categoria</label>
-        <select id="despCat">
-          <option value="">Selecionar…</option>
-          <option>Compra de Estoque</option><option>Embalagem</option>
-          <option>Aluguel</option><option>Transporte</option>
-          <option>Marketing</option><option>Taxa Cartão</option><option>Outros</option>
+      <div class="field">
+        <label>Categoria DRE</label>
+        <select id="despCat" onchange="updateDespSubcat()">
+          <option value="">Selecionar categoria…</option>
+          <optgroup label="💰 Impostos">
+            <option value="Impostos|DAS MEI">DAS MEI</option>
+          </optgroup>
+          <optgroup label="📦 Custo da Mercadoria (CMV)">
+            <option value="CMV|Compra de Produtos para Revenda">Compra de Produtos para Revenda</option>
+            <option value="CMV|Embalagens / Etiquetas">Embalagens / Etiquetas</option>
+            <option value="CMV|Frete / Transportadora">Frete / Transportadora</option>
+          </optgroup>
+          <optgroup label="🏢 Despesas Operacionais">
+            <option value="Operacional|Aluguel">Aluguel</option>
+            <option value="Operacional|Energia Elétrica">Energia Elétrica</option>
+            <option value="Operacional|Internet / Telefone">Internet / Telefone</option>
+            <option value="Operacional|Marketing / Redes Sociais">Marketing / Redes Sociais</option>
+            <option value="Operacional|Motoboy / Entrega">Motoboy / Entrega</option>
+            <option value="Operacional|Outros Operacional">Outros Operacional</option>
+          </optgroup>
+          <optgroup label="👥 Despesas com Pessoal">
+            <option value="Pessoal|Pró-labore">Pró-labore</option>
+            <option value="Pessoal|Comissões de Vendas">Comissões de Vendas</option>
+            <option value="Pessoal|Outros Pessoal">Outros Pessoal</option>
+          </optgroup>
+          <optgroup label="🏦 Despesas Financeiras">
+            <option value="Financeiro|Taxa Cartão de Crédito">Taxa Cartão de Crédito</option>
+            <option value="Financeiro|Tarifas Bancárias">Tarifas Bancárias</option>
+            <option value="Financeiro|Juros">Juros</option>
+            <option value="Financeiro|Outros Financeiro">Outros Financeiro</option>
+          </optgroup>
         </select>
       </div>
-      <div class="field"><label>Descrição</label><input type="text" id="despDesc" placeholder="Ex: Compra malhas fornecedor X"></div>
+      <div class="field"><label>Descrição (opcional)</label><input type="text" id="despDesc" placeholder="Ex: Boleto DAS março, Sacolas…"></div>
       <div class="field"><label>Valor (R$)</label><input type="number" id="despValor" inputmode="decimal" placeholder="0,00" min="0" step="0.01"></div>
       <button class="btn-salvar-desp" onclick="salvarDespesa()">Salvar Despesa</button>
     </div>
@@ -611,11 +633,13 @@
 
 <script>
 const ESTOQUE_INICIAL={
-  "Hugo Boss":{M:3,G:7,GG:2},"Lacoste":{M:2,G:3,GG:1,Peruana:1},
-  "Gucci":{G:3,Peruana:1},"Armani":{G:1,GG:1,Peruana:1},
-  "Prada":{G:1},"Palm Angels":{Oversized:1},"Nike":{M:2,G:2,GG:1}
+  "Básica":       {M:0,G:0,GG:0,Peruana:0},
+  "Egípcia":      {M:0,G:0,GG:0,Peruana:0},
+  "Polo Egípcia": {M:0,G:0,GG:0,Peruana:0},
+  "Polo Chinesa": {M:0,G:0,GG:0,Peruana:0},
+  "Oversized":    {M:0,G:0,GG:0,Peruana:0}
 };
-const SIZES_ORDER=['M','G','GG','Peruana','Oversized','Único'];
+const SIZES_ORDER=['M','G','GG','Peruana'];
 const PAY_INFO={Pix:{icon:'⚡',color:'#E8FF47'},Dinheiro:{icon:'💵',color:'#4ADE80'},Crédito:{icon:'💳',color:'#FF6B35'},Débito:{icon:'🏦',color:'#60A5FA'}};
 
 let selectedSize='',selectedPay='',isFiado=false,agFilter='todos';
@@ -687,7 +711,7 @@ async function syncFromSheets(){
     }));
     const estFmt = {};
     estoque.forEach(r=>{
-      estFmt[r.marca]={M:r.m,G:r.g,GG:r.gg,Peruana:r.peruana,Oversized:r.oversized,'Único':r.unico};
+      estFmt[r.marca]={M:r.m,G:r.g,GG:r.gg,Peruana:r.peruana};
     });
 
     if(vendasFmt.length)  await _lSet('vendas_v2',  vendasFmt);
@@ -715,7 +739,7 @@ async function saveEstoque(est){
   await _lSet('estoque_v2',est);
   const rows=Object.entries(est).map(([marca,s])=>({
     marca, m:s.M||0, g:s.G||0, gg:s.GG||0,
-    peruana:s.Peruana||0, oversized:s.Oversized||0, unico:s['Único']||0
+    peruana:s.Peruana||0, oversized:0, unico:0
   }));
   for(const r of rows) await sbUpsert('estoque', r);
 }
@@ -1056,20 +1080,59 @@ async function renderFinanceiro(){
 function renderListaDespesas(d){
   const el=document.getElementById('listDespesas');
   if(!d.length){el.innerHTML=`<div class="empty-state" style="padding:28px 0"><div class="empty-icon" style="font-size:2rem">📭</div><p>Nenhuma despesa neste período.</p></div>`;return;}
-  el.innerHTML=d.map(x=>`<div class="desp-card"><div class="desp-left"><div class="desp-cat">${x.cat}</div>${x.desc?`<div class="desp-desc">${x.desc}</div>`:''}<div class="desp-date">${fmtDate(x.date)}</div></div><div class="desp-right"><div class="desp-val">−${fmtBRL(x.valor)}</div><button class="btn-del" onclick="deletarDespesa(${x.id})">🗑 remover</button></div></div>`).join('');
+  el.innerHTML=d.map(x=>`<div class="desp-card"><div class="desp-left"><div class="desp-cat">${x.cat||x.subcategoria||'—'}</div>${x.categoria?`<div class="desp-desc" style="color:var(--muted);font-size:0.7rem;">📂 ${x.categoria}</div>`:''} ${x.desc?`<div class="desp-desc">${x.desc}</div>`:''}<div class="desp-date">${fmtDate(x.date)}</div></div><div class="desp-right"><div class="desp-val">−${fmtBRL(x.valor)}</div><button class="btn-del" onclick="deletarDespesa(${x.id})">🗑 remover</button></div></div>`).join('');
 }
 function toggleDespForm(){document.getElementById('despForm').classList.toggle('open');}
+function updateDespSubcat(){} // reservado para uso futuro
+
 async function salvarDespesa(){
-  const cat=document.getElementById('despCat').value,desc=document.getElementById('despDesc').value.trim(),valor=parseFloat(document.getElementById('despValor').value),date=document.getElementById('finDate').value||todayStr();
-  if(!cat) return showMsg('⚠ Selecione a categoria','#FBBF24');
+  const catVal = document.getElementById('despCat').value;
+  const desc   = document.getElementById('despDesc').value.trim();
+  const valor  = parseFloat(document.getElementById('despValor').value);
+  const today  = todayStr();
+  const mes    = today.slice(0,7); // YYYY-MM
+
+  if(!catVal)         return showMsg('⚠ Selecione a categoria','#FBBF24');
   if(!valor||valor<=0) return showMsg('⚠ Informe o valor','#FBBF24');
-  const d2={id:Date.now(),date:todayStr(),cat,desc,valor};
-  const lista=await getDespesas();lista.push(d2);await saveDespesas(lista);
-  await sbUpsert('despesas',{id:d2.id,date:todayStr(),cat,descricao:desc||'',valor});
-  document.getElementById('despCat').selectedIndex=0;document.getElementById('despDesc').value='';document.getElementById('despValor').value='';document.getElementById('despForm').classList.remove('open');
-  showMsg('✓ Despesa registrada!','#FF6B35');renderFinanceiro();
+
+  // catVal = "Categoria|Subcategoria"
+  const [categoria, subcategoria] = catVal.split('|');
+
+  const d2 = {id:Date.now(), date:today, cat:subcategoria, categoria, desc, valor};
+  const lista = await getDespesas();
+  lista.push(d2);
+  await saveDespesas(lista);
+
+  // Salva na tabela despesas
+  await sbUpsert('despesas',{id:d2.id, date:today, cat:subcategoria, descricao:desc||'', valor});
+
+  // Salva também na tabela DRE
+  await sbUpsert('dre',{
+    id: d2.id+1,
+    periodo: mes,
+    date: today,
+    categoria,
+    subcategoria,
+    valor,
+    tipo: 'despesa'
+  });
+
+  document.getElementById('despCat').selectedIndex=0;
+  document.getElementById('despDesc').value='';
+  document.getElementById('despValor').value='';
+  document.getElementById('despForm').classList.remove('open');
+  showMsg('✓ Despesa registrada!','#FF6B35');
+  renderFinanceiro();
 }
-async function deletarDespesa(id){if(!confirm('Remover esta despesa?')) return;const l=await getDespesas();await saveDespesas(l.filter(d=>d.id!==id));await sbDelete('despesas',id);renderFinanceiro();}
+
+async function deletarDespesa(id){
+  if(!confirm('Remover esta despesa?')) return;
+  const l=await getDespesas();
+  await saveDespesas(l.filter(d=>d.id!==id));
+  await sbDelete('despesas',id);
+  await sbDelete('dre', id+1);
+  renderFinanceiro();
+}
 function toggleEditSaldo(){document.getElementById('caixaEdit').classList.toggle('open');}
 async function saveSaldo(){
   const v=parseFloat(document.getElementById('caixaInput').value);if(isNaN(v)) return showMsg('⚠ Valor inválido','#FBBF24');

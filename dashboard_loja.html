@@ -261,9 +261,29 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito Sans',sans-serif
       </div>
 
       <!-- Despesas -->
-      <div class="card">
+      <div class="card" style="margin-bottom:20px;">
         <div class="card-title">Despesas do Período</div>
         <div id="tblDespesas"></div>
+      </div>
+
+      <!-- DRE -->
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
+          <div class="card-title" style="margin-bottom:0;">📊 DRE — Demonstração do Resultado</div>
+          <div style="display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap;">
+            <div>
+              <div style="font-size:0.65rem;color:var(--muted);margin-bottom:3px;">De</div>
+              <input type="date" id="dreDateDe" style="padding:7px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;" onchange="renderDRE()">
+            </div>
+            <div>
+              <div style="font-size:0.65rem;color:var(--muted);margin-bottom:3px;">Até</div>
+              <input type="date" id="dreDateAte" style="padding:7px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;" onchange="renderDRE()">
+            </div>
+            <button class="filter-btn active" style="margin-bottom:0;" onclick="setDrePeriod('mes',this)">Este mês</button>
+            <button class="filter-btn" style="margin-bottom:0;" onclick="setDrePeriod('tudo',this)">Tudo</button>
+          </div>
+        </div>
+        <div id="dreContent"></div>
       </div>
 
     </div><!-- /content -->
@@ -276,7 +296,7 @@ const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const HDR = {'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY};
 
 let period = 'hoje';
-let allVendas=[], allDespesas=[], allAgenda=[], allEstoque=[], saldo=0;
+let allVendas=[], allDespesas=[], allAgenda=[], allEstoque=[], allDRE=[], saldo=0;
 
 // AUTH
 async function sha256(msg){
@@ -344,6 +364,7 @@ async function loadAll(){
       sbGet('agenda','order=data_venc.asc'),
       sbGet('estoque','')
     ]);
+    allDRE = await sbGet('dre','order=date.asc');
     const sArr=await sbGet('saldo','id=eq.1');
     saldo=sArr.length?Number(sArr[0].valor):0;
     document.getElementById('lastUpdate').textContent='Atualizado em: '+new Date().toLocaleString('pt-BR');
@@ -414,6 +435,7 @@ function render(){
   renderAgenda(pendentes);
   renderEstoque();
   renderDespesas(despesas);
+  renderDRE();
 }
 
 // ── FLUXO DE CAIXA ────────────────────────────────────────
@@ -589,7 +611,7 @@ function renderEstoque(){
   el.innerHTML=allEstoque.map(e=>{
     const total=e.m+e.g+e.gg+e.peruana+e.oversized+e.unico;
     const totalCls=total===0?'var(--red)':total<=2?'var(--yellow)':'var(--green)';
-    const sizes=[['M',e.m],['G',e.g],['GG',e.gg],['Peruana',e.peruana],['Oversized',e.oversized],['Único',e.unico]].filter(([,v])=>v>0);
+    const sizes=[['M',e.m],['G',e.g],['GG',e.gg],['Peruana',e.peruana]].filter(([,v])=>v>=0);
     return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
         <span style="font-family:'Nunito',sans-serif;font-weight:800;font-size:0.95rem;">${e.marca}</span>
@@ -621,6 +643,158 @@ function renderDespesas(despesas){
       <td><strong style="color:var(--red)">${fmtBRL(d.valor)}</strong></td>
     </tr>`).join('')}</tbody>
   </table>`;
+}
+
+// ── DRE ──────────────────────────────────────────────────────────────────────
+let drePeriod = 'mes';
+
+function setDrePeriod(p, el){
+  drePeriod = p;
+  document.querySelectorAll('#dreContent ~ div .filter-btn, .card .filter-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderDRE();
+}
+
+function getDreDates(){
+  const today = todayStr();
+  const now   = new Date();
+  if(drePeriod === 'mes'){
+    const first = new Date(now.getFullYear(), now.getMonth(), 1);
+    return { de: first.toISOString().slice(0,10), ate: today };
+  }
+  if(drePeriod === 'tudo') return { de: '2000-01-01', ate: today };
+  return {
+    de:  document.getElementById('dreDateDe').value  || today,
+    ate: document.getElementById('dreDateAte').value || today
+  };
+}
+
+function renderDRE(){
+  const {de, ate} = getDreDates();
+
+  // Receita Bruta = todas as vendas do período (Varejo por padrão)
+  const vendasPeriodo = allVendas.filter(v=>{
+    const d = (v.iso_date||v.created_at||'').slice(0,10);
+    return d >= de && d <= ate;
+  });
+  const receitaBruta = vendasPeriodo.reduce((s,v)=>s+Number(v.valor||0),0);
+
+  // Despesas do DRE por categoria
+  const drePeriodo = allDRE.filter(d=> d.date >= de && d.date <= ate);
+
+  function somaCategoria(cat){ return drePeriodo.filter(d=>d.categoria===cat).reduce((s,d)=>s+Number(d.valor||0),0); }
+  function somaSubcat(sub){ return drePeriodo.filter(d=>d.subcategoria===sub).reduce((s,d)=>s+Number(d.valor||0),0); }
+
+  // Também pega despesas antigas que não têm categoria no DRE
+  const despPeriodo = allDespesas.filter(d=> d.date >= de && d.date <= ate);
+  const despSemDRE  = despPeriodo.filter(d=> !allDRE.find(dr=>dr.id===d.id+1));
+
+  const impostos    = somaCategoria('Impostos');
+  const cmv         = somaCategoria('CMV');
+  const operacional = somaCategoria('Operacional');
+  const pessoal     = somaCategoria('Pessoal');
+  const financeiro  = somaCategoria('Financeiro');
+  const totalDesp   = impostos + cmv + operacional + pessoal + financeiro;
+
+  const receitaLiq  = receitaBruta - impostos;
+  const lucroBruto  = receitaLiq - cmv;
+  const lucroOp     = lucroBruto - operacional - pessoal;
+  const lucroLiq    = lucroOp - financeiro;
+
+  const positivo = v => v >= 0 ? 'var(--green)' : 'var(--red)';
+
+  function row(label, valor, indent=0, bold=false, highlight=false, isNeg=false){
+    const col = highlight ? positivo(valor) : isNeg ? 'var(--red)' : 'var(--muted)';
+    const bg  = highlight ? (valor>=0?'rgba(74,222,128,.06)':'rgba(248,113,113,.06)') : 'transparent';
+    const prefix = isNeg && valor > 0 ? '−' : '';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:${highlight?'12px 12px':'8px 12px'};margin-left:${indent*16}px;border-radius:${highlight?'8px':'0'};background:${bg};border-bottom:1px solid var(--border);">
+      <span style="font-size:${bold||highlight?'0.88':'0.8'}rem;font-weight:${bold||highlight?'700':'400'};color:${highlight?col:bold?'var(--text)':'var(--muted)'};">${label}</span>
+      <span style="font-family:'Nunito',sans-serif;font-weight:${highlight?'800':'600'};font-size:${highlight?'1rem':'0.85rem'};color:${col};">${prefix}${fmtBRL(Math.abs(valor))}</span>
+    </div>`;
+  }
+
+  function separator(label){
+    return `<div style="padding:10px 12px 4px;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);margin-top:4px;">${label}</div>`;
+  }
+
+  // Detalhe CMV
+  const cmvRevenda = somaSubcat('Compra de Produtos para Revenda');
+  const cmvEmbal   = somaSubcat('Embalagens / Etiquetas');
+  const cmvFrete   = somaSubcat('Frete / Transportadora');
+
+  // Detalhe Operacional
+  const opAlug  = somaSubcat('Aluguel');
+  const opEner  = somaSubcat('Energia Elétrica');
+  const opInte  = somaSubcat('Internet / Telefone');
+  const opMkt   = somaSubcat('Marketing / Redes Sociais');
+  const opMoto  = somaSubcat('Motoboy / Entrega');
+  const opOutr  = somaSubcat('Outros Operacional');
+
+  // Detalhe Pessoal
+  const pesProL = somaSubcat('Pró-labore');
+  const pesCom  = somaSubcat('Comissões de Vendas');
+  const pesOutr = somaSubcat('Outros Pessoal');
+
+  // Detalhe Financeiro
+  const finTax  = somaSubcat('Taxa Cartão de Crédito');
+  const finBank = somaSubcat('Tarifas Bancárias');
+  const finJur  = somaSubcat('Juros');
+  const finOutr = somaSubcat('Outros Financeiro');
+
+  const html = `
+    <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+      ${separator('📅 Período: '+fmtDate(de)+' → '+fmtDate(ate))}
+
+      ${separator('💰 Receitas')}
+      ${row('Receita Bruta — Varejo', receitaBruta, 0, true)}
+      ${impostos > 0 ? row('(−) DAS MEI', impostos, 1, false, false, true) : ''}
+      ${row('= Receita Líquida', receitaLiq, 0, true, true)}
+
+      ${separator('📦 Custo da Mercadoria Vendida (CMV)')}
+      ${cmvRevenda > 0 ? row('Compra de Produtos para Revenda', cmvRevenda, 1, false, false, true) : ''}
+      ${cmvEmbal   > 0 ? row('Embalagens / Etiquetas', cmvEmbal, 1, false, false, true) : ''}
+      ${cmvFrete   > 0 ? row('Frete / Transportadora', cmvFrete, 1, false, false, true) : ''}
+      ${cmv > 0 ? row('(−) Total CMV', cmv, 0, true, false, true) : row('(−) Total CMV', 0, 0, false)}
+      ${row('= Lucro Bruto', lucroBruto, 0, true, true)}
+
+      ${separator('🏢 Despesas Operacionais')}
+      ${opAlug  > 0 ? row('Aluguel', opAlug, 1, false, false, true) : ''}
+      ${opEner  > 0 ? row('Energia Elétrica', opEner, 1, false, false, true) : ''}
+      ${opInte  > 0 ? row('Internet / Telefone', opInte, 1, false, false, true) : ''}
+      ${opMkt   > 0 ? row('Marketing / Redes Sociais', opMkt, 1, false, false, true) : ''}
+      ${opMoto  > 0 ? row('Motoboy / Entrega', opMoto, 1, false, false, true) : ''}
+      ${opOutr  > 0 ? row('Outros', opOutr, 1, false, false, true) : ''}
+
+      ${separator('👥 Despesas com Pessoal')}
+      ${pesProL > 0 ? row('Pró-labore', pesProL, 1, false, false, true) : ''}
+      ${pesCom  > 0 ? row('Comissões de Vendas', pesCom, 1, false, false, true) : ''}
+      ${pesOutr > 0 ? row('Outros', pesOutr, 1, false, false, true) : ''}
+      ${(operacional+pessoal) > 0 ? row('(−) Total Despesas Operacionais + Pessoal', operacional+pessoal, 0, true, false, true) : ''}
+      ${row('= Lucro Operacional (EBITDA)', lucroOp, 0, true, true)}
+
+      ${separator('🏦 Despesas Financeiras')}
+      ${finTax  > 0 ? row('Taxa Cartão de Crédito', finTax, 1, false, false, true) : ''}
+      ${finBank > 0 ? row('Tarifas Bancárias', finBank, 1, false, false, true) : ''}
+      ${finJur  > 0 ? row('Juros', finJur, 1, false, false, true) : ''}
+      ${finOutr > 0 ? row('Outros', finOutr, 1, false, false, true) : ''}
+
+      <div style="padding:16px 12px;background:${lucroLiq>=0?'rgba(74,222,128,.1)':'rgba(248,113,113,.1)'};border-top:2px solid ${lucroLiq>=0?'var(--green)':'var(--red)'};">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1rem;color:var(--text);">💰 LUCRO LÍQUIDO</span>
+          <span style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1.4rem;color:${positivo(lucroLiq)};">${fmtBRL(lucroLiq)}</span>
+        </div>
+        <div style="font-size:0.72rem;color:var(--muted);margin-top:4px;">
+          Margem líquida: ${receitaBruta > 0 ? (lucroLiq/receitaBruta*100).toFixed(1)+'%' : '—'}
+        </div>
+      </div>
+    </div>`;
+
+  document.getElementById('dreContent').innerHTML = html;
+
+  // Sincroniza inputs de data
+  const {de:d, ate:a} = getDreDates();
+  if(document.getElementById('dreDateDe').value !== d) document.getElementById('dreDateDe').value = d;
+  if(document.getElementById('dreDateAte').value !== a) document.getElementById('dreDateAte').value = a;
 }
 
 // INIT
