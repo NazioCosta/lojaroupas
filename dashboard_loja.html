@@ -296,7 +296,7 @@ const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const HDR = {'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY};
 
 let period = 'hoje';
-let allVendas=[], allDespesas=[], allAgenda=[], allEstoque=[], allDRE=[], saldo=0;
+let allVendas=[], allDespesas=[], allAgenda=[], allEstoque=[], allDRE=[], allPrecos=[], saldo=0;
 
 // AUTH
 async function sha256(msg){
@@ -364,7 +364,8 @@ async function loadAll(){
       sbGet('agenda','order=data_venc.asc'),
       sbGet('estoque','')
     ]);
-    allDRE = await sbGet('dre','order=date.asc');
+    allDRE    = await sbGet('dre','order=date.asc');
+    allPrecos = await sbGet('precos','');
     const sArr=await sbGet('saldo','id=eq.1');
     saldo=sArr.length?Number(sArr[0].valor):0;
     document.getElementById('lastUpdate').textContent='Atualizado em: '+new Date().toLocaleString('pt-BR');
@@ -608,27 +609,48 @@ function renderAgenda(pendentes){
 function renderEstoque(){
   const el=document.getElementById('estoqueGrid');
   if(!allEstoque.length){el.innerHTML='<div class="empty">Sem dados de estoque.</div>';return;}
-  el.innerHTML=allEstoque.map(e=>{
-    const total=e.m+e.g+e.gg+e.peruana+e.oversized+e.unico;
-    const totalCls=total===0?'var(--red)':total<=2?'var(--yellow)':'var(--green)';
-    const sizes=[['M',e.m],['G',e.g],['GG',e.gg],['Peruana',e.peruana]].filter(([,v])=>v>=0);
-    return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <span style="font-family:'Nunito',sans-serif;font-weight:800;font-size:0.95rem;">${e.marca}</span>
-        <span style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1rem;color:${totalCls}">${total} pç</span>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">
-        ${sizes.length ? sizes.map(([s,v])=>{
-          const c=v===0?'var(--red)':v<=1?'var(--yellow)':'var(--green)';
-          const bg=v===0?'var(--red-l)':v<=1?'var(--yellow-l)':'var(--green-l)';
-          return `<div style="background:${bg};border-radius:8px;padding:8px 6px;text-align:center;">
-            <div style="font-size:0.65rem;color:var(--muted);margin-bottom:3px;">${s}</div>
-            <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1.1rem;color:${c}">${v}</div>
-          </div>`;
-        }).join('') : `<div style="grid-column:span 3;text-align:center;color:var(--red);font-size:0.8rem;padding:8px;">Zerado</div>`}
-      </div>
-    </div>`;
-  }).join('');
+
+  // Capital imobilizado total
+  let totalImob = 0;
+  allEstoque.forEach(e=>{
+    const p = allPrecos.find(p=>p.marca===e.marca);
+    if(p) totalImob += (e.m+e.g+e.gg+e.peruana) * Number(p.preco_compra||0);
+  });
+
+  el.innerHTML = `
+    <div style="grid-column:1/-1;background:rgba(232,255,71,.08);border:1px solid rgba(232,255,71,.2);border-radius:12px;padding:14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+      <span style="font-size:0.78rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.08em;">💰 Capital Imobilizado em Estoque</span>
+      <span style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1.2rem;color:var(--accent);">${fmtBRL(totalImob)}</span>
+    </div>
+    ${allEstoque.map(e=>{
+      const p       = allPrecos.find(p=>p.marca===e.marca);
+      const total   = e.m+e.g+e.gg+e.peruana;
+      const imob    = p ? total * Number(p.preco_compra||0) : 0;
+      const totalCls= total===0?'var(--red)':total<=2?'var(--yellow)':'var(--green)';
+      const sizes   = [['M',e.m],['G',e.g],['GG',e.gg],['Peruana',e.peruana]];
+      return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-family:'Nunito',sans-serif;font-weight:800;font-size:0.95rem;">${e.marca}</span>
+          <span style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1rem;color:${totalCls}">${total} pç</span>
+        </div>
+        ${p ? `<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+          <span style="font-size:0.7rem;background:var(--green-l);color:var(--green);padding:3px 8px;border-radius:20px;">Compra: ${fmtBRL(p.preco_compra)}</span>
+          <span style="font-size:0.7rem;background:var(--blue-l);color:var(--blue);padding:3px 8px;border-radius:20px;">Venda: ${fmtBRL(p.preco_venda)}</span>
+          ${p.preco_atacado?`<span style="font-size:0.7rem;background:var(--yellow-l);color:var(--yellow);padding:3px 8px;border-radius:20px;">Kit ${p.qtd_atacado}x: ${fmtBRL(p.preco_atacado)}</span>`:''}
+        </div>` : ''}
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;">
+          ${sizes.map(([s,v])=>{
+            const c =v===0?'var(--red)':v<=1?'var(--yellow)':'var(--green)';
+            const bg=v===0?'var(--red-l)':v<=1?'var(--yellow-l)':'var(--green-l)';
+            return `<div style="background:${bg};border-radius:8px;padding:7px 4px;text-align:center;">
+              <div style="font-size:0.62rem;color:var(--muted);margin-bottom:2px;">${s}</div>
+              <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1rem;color:${c}">${v}</div>
+            </div>`;
+          }).join('')}
+        </div>
+        ${imob > 0 ? `<div style="margin-top:8px;font-size:0.72rem;color:var(--muted);text-align:right;">Imobilizado: <strong style="color:var(--accent)">${fmtBRL(imob)}</strong></div>` : ''}
+      </div>`;
+    }).join('')}`;
 }
 
 function renderDespesas(despesas){

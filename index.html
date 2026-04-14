@@ -336,6 +336,7 @@
       <option value="">Selecionar linha…</option>
       <option>Básica</option><option>Egípcia</option><option>Polo Egípcia</option>
       <option>Polo Chinesa</option><option>Oversized</option>
+      <option>Corta Vento Feminino</option><option>Cueca</option>
     </select>
   </div>
   <div class="field">
@@ -633,11 +634,13 @@
 
 <script>
 const ESTOQUE_INICIAL={
-  "Básica":       {M:0,G:0,GG:0,Peruana:0},
-  "Egípcia":      {M:0,G:0,GG:0,Peruana:0},
-  "Polo Egípcia": {M:0,G:0,GG:0,Peruana:0},
-  "Polo Chinesa": {M:0,G:0,GG:0,Peruana:0},
-  "Oversized":    {M:0,G:0,GG:0,Peruana:0}
+  "Básica":               {M:7, G:15,GG:12,Peruana:0},
+  "Egípcia":              {M:11,G:4, GG:4, Peruana:0},
+  "Polo Egípcia":         {M:0, G:0, GG:0, Peruana:0},
+  "Polo Chinesa":         {M:0, G:3, GG:0, Peruana:0},
+  "Oversized":            {M:0, G:0, GG:0, Peruana:0},
+  "Corta Vento Feminino": {M:0, G:1, GG:1, Peruana:0},
+  "Cueca":                {M:0, G:1, GG:0, Peruana:0}
 };
 const SIZES_ORDER=['M','G','GG','Peruana'];
 const PAY_INFO={Pix:{icon:'⚡',color:'#E8FF47'},Dinheiro:{icon:'💵',color:'#4ADE80'},Crédito:{icon:'💳',color:'#FF6B35'},Débito:{icon:'🏦',color:'#60A5FA'}};
